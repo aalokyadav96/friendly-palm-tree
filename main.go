@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/cors"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -149,8 +151,8 @@ var (
 // }
 
 // Initialize MongoDB connection
-
 func init() {
+
 	// Load environment variables from .env file
 	err := godotenv.Load()
 	if err != nil {
@@ -163,18 +165,55 @@ func init() {
 		log.Fatalf("MONGODB_URI environment variable is not set")
 	}
 
-	// Set up MongoDB client options
-	clientOptions := options.Client().ApplyURI(mongoURI)
+	// Use the SetServerAPIOptions() method to set the version of the Stable API on the client
+	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
+	opts := options.Client().ApplyURI(mongoURI).SetServerAPIOptions(serverAPI)
 
-	// Connect to MongoDB
-	client, err = mongo.Connect(context.TODO(), clientOptions)
+	// Create a new client and connect to the server
+	client, err := mongo.Connect(context.TODO(), opts)
 	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
+		panic(err)
 	}
 
-	// Set the user collection
+	defer func() {
+		if err = client.Disconnect(context.TODO()); err != nil {
+			panic(err)
+		}
+	}()
+
+	// Send a ping to confirm a successful connection
+	if err := client.Database("admin").RunCommand(context.TODO(), bson.D{{"ping", 1}}).Err(); err != nil {
+		panic(err)
+	}
+	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
 	userCollection = client.Database("your_database").Collection("users")
 }
+
+// func init() {
+// 	// Load environment variables from .env file
+// 	err := godotenv.Load()
+// 	if err != nil {
+// 		log.Fatalf("Error loading .env file")
+// 	}
+
+// 	// Get the MongoDB URI from the environment variable
+// 	mongoURI := os.Getenv("MONGODB_URI")
+// 	if mongoURI == "" {
+// 		log.Fatalf("MONGODB_URI environment variable is not set")
+// 	}
+
+// 	// Set up MongoDB client options
+// 	clientOptions := options.Client().ApplyURI(mongoURI)
+
+// 	// Connect to MongoDB
+// 	client, err = mongo.Connect(context.TODO(), clientOptions)
+// 	if err != nil {
+// 		log.Fatalf("Failed to connect to MongoDB: %v", err)
+// 	}
+
+// 	// Set the user collection
+// 	userCollection = client.Database("your_database").Collection("users")
+// }
 
 func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	tmpl.ExecuteTemplate(w, "index.html", nil)
