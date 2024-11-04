@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:4000/api"; // Adjust the URL as needed
+const API_URL = "https://qualms.onrender.com/api"; // Adjust the URL as needed
 
 // State management
 const state = {
